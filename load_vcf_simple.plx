@@ -1,4 +1,5 @@
 #!/bin/env perl
+
 use strict;
 use warnings;
 
@@ -20,8 +21,7 @@ use warnings;
 ##    match the format more cleanly.
 
 ## 6) A static hash mapping sequence names to internal IDs can be
-##    provided inline (see below). Clearly this could be passed some
-##    other way.
+##    provided as a simple TSV (see MAP below).
 
 
 
@@ -44,18 +44,28 @@ my %class_attrib_id =
         sequence_alteration 18
     );
 
+
+
 ## We now use a file to map 'chromosome names' in the vcf to
 ## seq_region_ids in the variation database. This is because there can
 ## be all kinds of weird and non-one-to-one mappings between the two.
+
 my %seq_region_id;
-my $mapping_file = 'seq_region_id-hordeum_vulgare_core_25_78_2.mapping';
+
+#my $mapping_file = 'seq_region_id-hordeum_vulgare_core_25_78_2.mapping';
+my $mapping_file = 'seq_region_id-solanum_lycopersicum_core_27_80_2.mapping';
+
 open MAP, '<', $mapping_file
     or die "failed to open mapping file $mapping_file: $?\n";
 
 while(<MAP>){
     chomp;
+
     my ($name, $seq_region_id) = split/\t/;
-    warn "fffff\n" if exists $seq_region_id{$name};
+
+    warn "Multiple mappings for '$name'\n"
+        if exists $seq_region_id{$name};
+
     $seq_region_id{$name} = $seq_region_id;
 }
 
@@ -211,6 +221,7 @@ while(<>){
 
     for my $sample ( @sample ){
         $individual_id++;
+
         next if $sample eq '.';
 
         ## Debugging
@@ -293,7 +304,9 @@ while(<>){
 print "got ", scalar keys %allele_code,   " alleles\n";
 print "got ", scalar keys %genotype_code, " genotypes\n";
 
-## Dump them here...
+
+
+## Finally, dump them here...
 print { $file{allele_code} }   "$allele_code{$_}\t$_\n"
     for keys %allele_code;
 
@@ -311,6 +324,10 @@ for my $genotype (keys %genotype_code){
     }
 }
 
+warn "DONE\n";
+
+
+
 sub find_class_attrib {
     my $ref = shift;
     my $alt_aref = shift;
@@ -326,6 +343,7 @@ sub find_class_attrib {
     }
 
     if(0){}
+
     elsif(defined $indel{+1}){
         if(defined $indel{-1}){
             $class_attrib = 'sequence_alteration';
