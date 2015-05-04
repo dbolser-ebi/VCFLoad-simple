@@ -9,7 +9,7 @@
 # 
 
 
-Notes on loading:
+### Notes on loading:
 
 ## If I were king...
 # ln -s population_allele.tsv allele.tsv
@@ -18,12 +18,17 @@ Notes on loading:
 
 # db=dbolser_solanum_lycopersicum_variation_24_77_240
 # server=mysql-staging-2-ensrw
-db=dbolser_hordeum_vulgare_variation_25_78_2
-server=mysql-prod-3-ensrw
+
+# db=dbolser_hordeum_vulgare_variation_25_78_2
+# server=mysql-prod-3-ensrw
+
+db=solanum_lycopersicum_variation_27_80_250
+server=mysql-prod-1-ensrw
+
+
 
 # $server mysqladmin CREATE $db
 # $server $db < /nfs/panda/ensemblgenomes/apis/ensembl/current/ensembl-variation/sql/table.sql
-
 
 $server --show-warnings $db -e 'TRUNCATE TABLE allele_code'
 $server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
@@ -72,5 +77,3 @@ $server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
     (variation_feature_id, seq_region_id, seq_region_start, seq_region_end,
      seq_region_strand, variation_id, allele_string, variation_name, map_weight,
     source_id, class_attrib_id)'
-
-
