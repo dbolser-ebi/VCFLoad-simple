@@ -1,0 +1,76 @@
+
+
+# Configure and run load_vcf_simple.plx
+
+# e.g. time ./load_vcf_simple.plx <( gunzip -c Data/merged.vcf.gz )
+
+# Files are written to MySQL/
+
+# 
+
+
+Notes on loading:
+
+## If I were king...
+# ln -s population_allele.tsv allele.tsv
+# ln -s individual_genotype_x.tsv tmp_individual_genotype_single_bp.tsv
+# ln -s individual_genotype_y.tsv     individual_genotype_multiple_bp.tsv
+
+# db=dbolser_solanum_lycopersicum_variation_24_77_240
+# server=mysql-staging-2-ensrw
+db=dbolser_hordeum_vulgare_variation_25_78_2
+server=mysql-prod-3-ensrw
+
+# $server mysqladmin CREATE $db
+# $server $db < /nfs/panda/ensemblgenomes/apis/ensembl/current/ensembl-variation/sql/table.sql
+
+
+$server --show-warnings $db -e 'TRUNCATE TABLE allele_code'
+$server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
+    "allele_code.tsv" INTO TABLE allele_code'
+
+$server --show-warnings $db -e 'TRUNCATE TABLE allele'
+$server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
+    "allele.tsv" INTO TABLE allele
+    (allele_id, variation_id, allele_code_id, population_id, frequency, count)'
+
+$server --show-warnings $db -e 'TRUNCATE TABLE genotype_code'
+$server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
+    "genotype_code.tsv" INTO TABLE genotype_code'
+
+$server --show-warnings $db -e 'TRUNCATE TABLE individual_genotype_multiple_bp'
+$server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
+    "individual_genotype_multiple_bp.tsv" INTO TABLE
+    individual_genotype_multiple_bp
+    (variation_id, allele_1, allele_2, individual_id)'
+
+$server --show-warnings $db -e 'TRUNCATE TABLE individual'
+$server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
+    "individual.tsv" INTO TABLE individual
+    (individual_id, name, individual_type_id)'
+
+$server --show-warnings $db -e 'TRUNCATE TABLE population_genotype'
+$server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
+    "population_genotype.tsv" INTO TABLE population_genotype
+    (population_genotype_id, variation_id, genotype_code_id,
+     frequency, population_id, count)'
+
+$server --show-warnings $db -e 'TRUNCATE TABLE tmp_individual_genotype_single_bp'
+$server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
+    "tmp_individual_genotype_single_bp.tsv" INTO TABLE 
+    tmp_individual_genotype_single_bp
+    (variation_id, allele_1, allele_2, individual_id)'
+
+$server --show-warnings $db -e 'TRUNCATE TABLE variation'
+$server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
+    "variation.tsv" INTO TABLE variation
+    (variation_id, source_id, name, class_attrib_id)'
+
+$server --show-warnings $db -e 'TRUNCATE TABLE variation_feature'
+$server --show-warnings $db -e 'LOAD DATA LOCAL INFILE
+    "variation_feature.tsv" INTO TABLE variation_feature
+    (variation_feature_id, seq_region_id, seq_region_start, seq_region_end,
+     seq_region_strand, variation_id, allele_string, variation_name, map_weight,
+    source_id, class_attrib_id)'
+
+
