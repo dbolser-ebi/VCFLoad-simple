@@ -163,8 +163,10 @@ while(<>){
 
     my @alleles = split(/\,/, $alt);
 
-    die "cant find seq_region_id for '$chr'\n"
-        unless exists $seq_region_id{$chr};
+    if (!exists $seq_region_id{$chr}){
+        warn "cant find seq_region_id for '$chr'\n";
+        next;
+    }
 
     ## Calculate the variation 'class' (id) from the alleles
     my $class_attrib_id =
