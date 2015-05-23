@@ -50,6 +50,12 @@ my %class_attrib_id =
 ## seq_region_ids in the variation database. This is because there can
 ## be all kinds of weird and non-one-to-one mappings between the two.
 
+## Use something like this...
+## mysql-prod-1 triticum_aestivum_core_27_80_2 -Ne '
+##   SELECT name, seq_region_id FROM seq_region
+##   INNER JOIN seq_region_attrib WHERE attrib_type_id = 6
+## ' > seq_region_id-triticum_aestivum_core_27_80_2.mapping
+
 my %seq_region_id;
 
 #my $mapping_file = 'seq_region_id-hordeum_vulgare_core_25_78_2.mapping';
