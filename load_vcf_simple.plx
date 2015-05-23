@@ -59,7 +59,8 @@ my %class_attrib_id =
 my %seq_region_id;
 
 #my $mapping_file = 'seq_region_id-hordeum_vulgare_core_25_78_2.mapping';
-my $mapping_file = 'seq_region_id-solanum_lycopersicum_core_27_80_2.mapping';
+#my $mapping_file = 'seq_region_id-solanum_lycopersicum_core_27_80_2.mapping';
+my $mapping_file = 'seq_region_id-triticum_aestivum_core_27_80_2.mapping';
 
 open MAP, '<', $mapping_file
     or die "failed to open mapping file $mapping_file: $?\n";
