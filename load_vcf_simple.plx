@@ -4,7 +4,8 @@ use strict;
 use warnings;
 
 use Log::Log4perl qw(:easy);
-Log::Log4perl->easy_init($DEBUG);
+#Log::Log4perl->easy_init($DEBUG);
+Log::Log4perl->easy_init($WARN);
 
 ## The list of assumptions made by this script (for speed):
 
@@ -13,6 +14,9 @@ Log::Log4perl->easy_init($DEBUG);
 ## 1) One source, ID given below.
 
 ## 2) One population, ID given below.
+
+## 2.1) There is exactly one line starting with a single #, which
+##      gives the column headers (and the sample list).
 
 ## 3) One line per-locus, per-variation. i.e. no multiply mapped
 ##    variations and no sets of 'overlapping' VCF files.
@@ -98,10 +102,12 @@ my @file =
         genotype_code
         population_allele
         population_genotype
-        individual_genotype_x
-        individual_genotype_y
+        individual_genotype_sbp
+        individual_genotype_mbp
         variation
         variation_feature
+        variation_set
+        variation_set_variation
     );
 
 ## Open all files for writing
@@ -128,6 +134,7 @@ my $genotype_id;
 ## The maps we build
 my %allele_code;
 my %genotype_code;
+my %variation_set_id;
 
 while(<>){
     next if /^##/;
@@ -141,6 +148,7 @@ while(<>){
         my $type = 3; # See the schema
         print { $file{'individual'} } $i++, "\t$_\t$type\n"
             for @cols[9..$#cols];
+
         next;
     }
 
@@ -148,21 +156,28 @@ while(<>){
 
     ## See the VCF format to understand this
     my ($chr, $pos, $id, $ref, $alt,
+
         ## None of these are (currently) used here
         undef, # qual
         undef, # filter
-        undef, # info
+
+        ## We soemetimes use this for variation sets (else it's unused
+        ## here)
+        $info, # info
+
+        ## TODO: We should use this correctly, but assume just
+        ## "GT". See make_genotype_codes
         undef, # format
-        ## But we need these!
+
+        ## We need the sample (genotypes)
         @sample
+
         ) = split/\t/;
 
     ## Debugging
     DEBUG(
         join("\t", $chr, $pos, $id, $ref, $alt)
     );
-
-    my @alleles = split(/\,/, $alt);
 
     if (!exists $seq_region_id{$chr}){
         ERROR(
@@ -173,6 +188,8 @@ while(<>){
 
     ## Calculate the variation 'class' (id) from the alleles
     my $class_attrib_id = 18;
+
+    my @alleles = split(/\,/, $alt);
 
     ## Skipping this step?
     $class_attrib_id = 
@@ -220,6 +237,9 @@ while(<>){
         ), "\n";
 
 
+    ## Variation sets and variation set mappings
+    make_variation_set_ids( $info );
+
 
     ## Hash all alleles into allele codes (%allele_codes)
     make_allele_codes( [$ref, @alleles] );
@@ -255,8 +275,7 @@ while(<>){
         next if $sample eq '0/0';
 
         ## Debugging
-        print "\t", $sample, "\n"
-            if $debug > 0;
+        DEBUG("\t$sample");
 
         ## Hash all genotypes into genotype codes
         my @genotype =
@@ -265,9 +284,9 @@ while(<>){
         next if @genotype != 2; # ug
 
         ## WTF, quite frankly
-        my $file = $file{individual_genotype_y};
+        my $file = $file{individual_genotype_mbp};
         if($class_attrib_id == 2){ ## SNV
-            $file = $file{individual_genotype_x};
+            $file = $file{individual_genotype_sbp};
         }
 
         print $file
@@ -335,13 +354,14 @@ while(<>){
     #exit;
 }
 
+print "got $variation_id variations\n";
 print "got ", scalar keys %allele_code,   " alleles\n";
 print "got ", scalar keys %genotype_code, " genotypes\n";
 
 
 
 ## Finally, dump them here...
-print { $file{allele_code} }   "$allele_code{$_}\t$_\n"
+print { $file{allele_code} } "$allele_code{$_}\t$_\n"
     for keys %allele_code;
 
 for my $genotype (keys %genotype_code){
@@ -358,6 +378,12 @@ for my $genotype (keys %genotype_code){
     }
 }
 
+print { $file{variation_set} } "$variation_set_id{$_}\t$_\n"
+    for keys %variation_set_id;
+
+
+
+
 warn "DONE\n";
 
 
@@ -373,7 +399,7 @@ sub find_class_attrib {
 
     my %indel;
     for my $alt (@$alt_aref){
-        $indel{length($alt) <=> $ref_len}++;
+        $indel{ length($alt) <=> $ref_len }++;
     }
 
     if(0){}
@@ -409,7 +435,7 @@ sub make_genotype_codes {
     my $allele_aref = shift;
     my $sample = shift;
 
-    ## This is just the way VCF is
+    ## This is just the way VCF is. TODO: Parse Format correctly here!
     my @genotype =
         @$allele_aref[ split('/', (split(':', $sample))[0]) ];
     my $genotype = join('/', @genotype);
@@ -419,3 +445,30 @@ sub make_genotype_codes {
     # usefull side effect:
     return @genotype;
 }
+
+sub make_variation_set_ids {
+    my $info = shift;
+
+    for my $field (split(/;/, $info)){
+        DEBUG("$field");
+        my ($key, $value) =
+            split(/=/, $field, 2);
+        if ($key eq 'STUDY'){
+            for my $study (split(/,/, $value)){
+
+                ## Map studies to an id...
+                $variation_set_id{ $study } =
+                    1 + (scalar keys %variation_set_id)
+                        unless defined $variation_set_id{ $study };
+
+                ## Print them...
+                print { $file{variation_set_variation} }
+                join("\t",
+                     $variation_id,
+                     $variation_set_id{ $study },
+                    ), "\n";
+            }
+        }
+    }
+}
+
