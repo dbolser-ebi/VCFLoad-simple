@@ -3,6 +3,9 @@
 use strict;
 use warnings;
 
+use Log::Log4perl qw(:easy);
+Log::Log4perl->easy_init($DEBUG);
+
 ## The list of assumptions made by this script (for speed):
 
 ## 0) No existing data in the target variation database.
@@ -24,9 +27,6 @@ use warnings;
 ##    provided as a simple TSV (see MAP below).
 
 
-
-## Spew some random debugging
-my $debug = 0;
 
 ## One variation can only ever be linked to one source!
 my $source_id = 1;
@@ -158,14 +158,16 @@ while(<>){
         ) = split/\t/;
 
     ## Debugging
-    print
-        join("\t", $chr, $pos, $id, $ref, $alt), "\n"
-        if $debug > 0;
+    DEBUG(
+        join("\t", $chr, $pos, $id, $ref, $alt)
+    );
 
     my @alleles = split(/\,/, $alt);
 
     if (!exists $seq_region_id{$chr}){
-        warn "cant find seq_region_id for '$chr'\n";
+        ERROR(
+            "cant find seq_region_id for '$chr'"
+        );
         next;
     }
 
