@@ -36,6 +36,7 @@ my $population_id = 1;
 
 ## These are those currently used by import_vcf.pl with IDs from the
 ## schema attribs table.
+
 my %class_attrib_id =
     qw( SNV                  2
         substitution         5
@@ -46,21 +47,22 @@ my %class_attrib_id =
 
 
 
-## We now use a file to map 'chromosome names' in the vcf to
-## seq_region_ids in the variation database. This is because there can
-## be all kinds of weird and non-one-to-one mappings between the two.
+## We use a file to map 'chromosome names' in the VCF to
+## seq_region_ids in the variation database.
 
-## Use something like this...
+## Use something like this to generate the mapping...
 ## mysql-prod-1 triticum_aestivum_core_27_80_2 -Ne '
 ##   SELECT name, seq_region_id FROM seq_region
-##   INNER JOIN seq_region_attrib WHERE attrib_type_id = 6
-## ' > seq_region_id-triticum_aestivum_core_27_80_2.mapping
+##   INNER JOIN seq_region_attrib USING (seq_region_id)
+##   WHERE attrib_type_id = 6
+## ' > my.mapping
 
 my %seq_region_id;
 
 #my $mapping_file = 'seq_region_id-hordeum_vulgare_core_25_78_2.mapping';
 #my $mapping_file = 'seq_region_id-solanum_lycopersicum_core_27_80_2.mapping';
-my $mapping_file = 'seq_region_id-triticum_aestivum_core_27_80_2.mapping';
+#my $mapping_file = 'seq_region_id-triticum_aestivum_core_27_80_2.mapping';
+my $mapping_file = 'Mapping/seq_region_id-oryza_sativa_core_31_84_7.mapping';
 
 open MAP, '<', $mapping_file
     or die "failed to open mapping file $mapping_file: $?\n";
@@ -120,9 +122,6 @@ for my $file (@file){
 
 my $variation_id;
 
-## If it were my schema, I'd define this per variation using a
-## compound primary key. It's much more intuitive that way. But then
-## again...
 my $allele_id;
 my $genotype_id;
 
@@ -139,13 +138,15 @@ while(<>){
     if (/^#/){
         my @cols = split/\t/;
         my $i = 1;
-        print { $file{individual} } $i++, "\t$_\t3\n"
+        my $type = 3; # See the schema
+        print { $file{'individual'} } $i++, "\t$_\t$type\n"
             for @cols[9..$#cols];
         next;
     }
 
     $variation_id++;
 
+    ## See the VCF format to understand this
     my ($chr, $pos, $id, $ref, $alt,
         ## None of these are (currently) used here
         undef, # qual
@@ -169,7 +170,10 @@ while(<>){
     }
 
     ## Calculate the variation 'class' (id) from the alleles
-    my $class_attrib_id =
+    my $class_attrib_id = 18;
+
+    ## Skipping this step?
+    $class_attrib_id = 
         find_class_attrib($ref, \@alleles);
 
     ## Print the variation
@@ -191,12 +195,12 @@ while(<>){
     ## and the variation feature
     print { $file{variation_feature} }
     join("\t",
-         $variation_id,
+         $variation_id, # variation_feature_id
          $seq_region_id{$chr},
          $pos,
          $pos + length($ref) - 1,
          1, # strand
-         $variation_id,
+         $variation_id, # variation_id
          join('/', $ref, @alleles),
          $id, # variation_name
          1, # map_weight
@@ -215,7 +219,7 @@ while(<>){
 
 
 
-    ## Hash all alleles into allele codes
+    ## Hash all alleles into allele codes (%allele_codes)
     make_allele_codes( [$ref, @alleles] );
 
 
@@ -231,7 +235,22 @@ while(<>){
     for my $sample ( @sample ){
         $individual_id++;
 
+        ## We only care about the GT field (this is horrible)
+        ($sample) = split(/:/, $sample);
+
+        ## Ignore samples with no genotype information
         next if $sample eq '.';
+
+        ## Hack to ignore weird genotypes in rice...
+        if($sample =~ /^(.\/.)(\/.)*$/){
+            $sample = $1;
+        }
+
+        next if $sample eq './.';
+
+        ## TESTING SOMETHING
+        ## TODO: Use coverage to encode this instead?
+        next if $sample eq '0/0';
 
         ## Debugging
         print "\t", $sample, "\n"
@@ -240,7 +259,8 @@ while(<>){
         ## Hash all genotypes into genotype codes
         my @genotype =
             make_genotype_codes( [$ref, @alleles], $sample );
-        die if @genotype != 2; # ug
+        #warn "gt ne 2\n" if @genotype != 2;
+        next if @genotype != 2; # ug
 
         ## WTF, quite frankly
         my $file = $file{individual_genotype_y};
@@ -272,6 +292,8 @@ while(<>){
     my $allele_count_total;
     $allele_count_total += $_
         for values %population_allele_count;
+
+    next unless $allele_count_total;
 
     ## Note we loop through all possible alleles, not just those we
     ## see in individuals, e.g. the ref may never be seen.
@@ -308,6 +330,7 @@ while(<>){
              $population_genotype_count{$_},
             ), "\n";
     }
+    #exit;
 }
 
 print "got ", scalar keys %allele_code,   " alleles\n";
@@ -374,7 +397,9 @@ sub make_allele_codes {
 
     for my $allele ( @$allele_aref ){
         next if defined( $allele_code{$allele} );
-        $allele_code{ $allele } = 1 + scalar keys %allele_code;
+        ## Map codes to an index
+        $allele_code{ $allele } =
+            1 + (scalar keys %allele_code);
     }
 }
 
