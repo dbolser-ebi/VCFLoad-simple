@@ -108,6 +108,7 @@ my @file =
         variation_feature
         variation_set
         variation_set_variation
+        variation_synonym
     );
 
 ## Open all files for writing
@@ -194,6 +195,22 @@ while(<>){
     ## Skipping this step?
     $class_attrib_id = 
         find_class_attrib($ref, \@alleles);
+
+    ## Handle variation synonyms
+    my @synonyms = split(/;/, $id);
+
+    ## The first in the list is the 'primary id'
+    $id = shift @synonyms;
+
+    ## Print the variation synonyms
+    for my $synonym (@synonyms){
+        print { $file{variation_synonym} }
+        join("\t",
+             $variation_id,
+             $source_id,
+             $synonym,
+            ), "\n";
+    }
 
     ## Print the variation
     print { $file{variation} }
