@@ -31,6 +31,12 @@ Log::Log4perl->easy_init($WARN);
 ##    provided as a simple TSV (see MAP below).
 
 
+## See: 
+## https://github.com/Ensembl/ensembl-variation/blob/master/scripts/import/post_process_variation_feature_variation_set.pl
+## TODO: Should be unnecessary!
+
+
+
 
 ## One variation can only ever be linked to one source!
 my $source_id = 1;
@@ -102,8 +108,8 @@ my @file =
         genotype_code
         population_allele
         population_genotype
-        individual_genotype_sbp
-        individual_genotype_mbp
+        sample_genotype_sbp
+        sample_genotype_mbp
         variation
         variation_feature
         variation_set
@@ -181,7 +187,7 @@ while(<>){
     );
 
     if (!exists $seq_region_id{$chr}){
-        ERROR(
+        LOGWARN(
             "cant find seq_region_id for '$chr'"
         );
         next;
@@ -192,9 +198,26 @@ while(<>){
 
     my @alleles = split(/\,/, $alt);
 
+    ## Hash all alleles into allele codes (%allele_codes)
+    make_allele_codes( [$ref, @alleles] );
+
     ## Skipping this step?
     $class_attrib_id = 
         find_class_attrib($ref, \@alleles);
+
+    ## Variation sets and variation set mappings
+    my $variation_set_id_aref = make_variation_set_ids( $info );
+    
+    ## Print them...
+    for (@$variation_set_id_aref){
+        print { $file{variation_set_variation} }
+          join("\t",
+               $variation_id,
+               $_,
+              ), "\n";
+    }
+
+
 
     ## Handle variation synonyms
     my @synonyms = split(/;/, $id);
@@ -211,6 +234,8 @@ while(<>){
              $synonym,
             ), "\n";
     }
+
+
 
     ## Print the variation
     print { $file{variation} }
@@ -244,7 +269,7 @@ while(<>){
          $source_id,
          # validation_status
          # consequence_types
-         # variation_set_id
+         join(',', @$variation_set_id_aref), # variation_set_id
          $class_attrib_id,
          # somatic
          # minor_junk
@@ -252,14 +277,6 @@ while(<>){
          # evidence_attribs
          # clinical_significance
         ), "\n";
-
-
-    ## Variation sets and variation set mappings
-    make_variation_set_ids( $info );
-
-
-    ## Hash all alleles into allele codes (%allele_codes)
-    make_allele_codes( [$ref, @alleles] );
 
 
 
@@ -465,6 +482,7 @@ sub make_genotype_codes {
 
 sub make_variation_set_ids {
     my $info = shift;
+    my @ids;
 
     for my $field (split(/;/, $info)){
         DEBUG("$field");
@@ -478,14 +496,12 @@ sub make_variation_set_ids {
                     1 + (scalar keys %variation_set_id)
                         unless defined $variation_set_id{ $study };
 
-                ## Print them...
-                print { $file{variation_set_variation} }
-                join("\t",
-                     $variation_id,
-                     $variation_set_id{ $study },
-                    ), "\n";
+                ## Store them
+                push @ids, $variation_set_id{ $study };
+
             }
         }
     }
+    return \@ids;
 }
 
