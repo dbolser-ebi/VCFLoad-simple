@@ -28,7 +28,7 @@ my $verbose = 0;
 
 warn "Loading the registry\n";
 Bio::EnsEMBL::Registry->
-  load_registry_from_db(qw(mysql-eg-prod-1.ebi.ac.uk 4238 ensrw writ3rp1))
+  load_registry_from_db(qw(mysql-eg-prod-1.ebi.ac.uk 4238 ensro ))
     or die;
 
 warn "Getting a database adaptor ($db_type:$species)\n";

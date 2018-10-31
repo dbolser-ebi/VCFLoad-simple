@@ -61,11 +61,11 @@ my $verbose = 0;
 print $ERR "Loading the registry\n";
 
 Bio::EnsEMBL::Registry->
-  load_registry_from_db(qw(mysql-eg-prod-2.ebi.ac.uk 4239 ensrw writ3rp2))
+  load_registry_from_db(qw(mysql-eg-prod-2.ebi.ac.uk 4239 ensro ))
     or die;
 
 # Bio::EnsEMBL::Registry->
-#   load_registry_from_db(qw(mysql-eg-prod-1.ebi.ac.uk 4238 ensrw writ3rp1))
+#   load_registry_from_db(qw(mysql-eg-prod-1.ebi.ac.uk 4238 ensro ))
 #     or die;
 
 
